@@ -144,18 +144,25 @@ def make_a_call(to_number, caller_id=None, link_to_document=None):
 		)
 
 	endpoint = get_exotel_endpoint("Calls/connect.json?details=true")
-	cell_number = frappe.get_value(
-		"Employee", {"user_id": frappe.session.user}, "cell_number"
+	employee = frappe.get_value(
+		"Employee",
+		{"user_id": frappe.session.user},
+		["cell_number", "exotel_exophone"],
+		as_dict=True,
 	)
 
-	if not cell_number:
+	if not employee or not employee.cell_number:
 		frappe.throw(_("You do not have mobile number set in your Employee master"))
+
+	caller_id = caller_id or employee.exotel_exophone
+	if not caller_id:
+		frappe.throw(_("You do not have an ExoPhone number set in your Employee master"))
 
 	try:
 		response = requests.post(
 			endpoint,
 			data={
-				"From": cell_number,
+				"From": employee.cell_number,
 				"To": to_number,
 				"CallerId": caller_id,
 				"Record": "true"
@@ -218,6 +225,19 @@ def get_all_exophones():
 		phone.get("IncomingPhoneNumber", {}).get("PhoneNumber")
 		for phone in response.json().get("IncomingPhoneNumbers", [])
 	]
+
+
+@frappe.whitelist()
+def sync_exophones_from_exotel():
+	added = []
+	for phone_number in get_all_exophones():
+		if phone_number and not frappe.db.exists("Exotel Exophone", phone_number):
+			frappe.get_doc(
+				{"doctype": "Exotel Exophone", "phone_number": phone_number}
+			).insert(ignore_permissions=True)
+			added.append(phone_number)
+	frappe.db.commit()
+	return added
 
 
 def get_exotel_endpoint(action):
