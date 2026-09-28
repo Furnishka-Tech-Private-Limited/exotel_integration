@@ -6,7 +6,9 @@
  "doctype": "DocType",
  "engine": "InnoDB",
  "field_order": [
-  "phone_number"
+  "phone_number",
+  "group",
+  "enabled"
  ],
  "fields": [
   {
@@ -16,6 +18,21 @@
    "label": "Phone Number",
    "reqd": 1,
    "unique": 1
+  },
+  {
+   "fieldname": "group",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Group",
+   "options": "Exotel Exophone Group"
+  },
+  {
+   "default": "0",
+   "depends_on": "group",
+   "fieldname": "enabled",
+   "fieldtype": "Check",
+   "in_list_view": 1,
+   "label": "Enabled"
   }
  ],
  "index_web_pages_for_search": 0,

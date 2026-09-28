@@ -147,16 +147,28 @@ def make_a_call(to_number, caller_id=None, link_to_document=None):
 	employee = frappe.get_value(
 		"Employee",
 		{"user_id": frappe.session.user},
-		["cell_number", "exotel_exophone"],
+		["cell_number", "exotel_exophone_group"],
 		as_dict=True,
 	)
 
 	if not employee or not employee.cell_number:
 		frappe.throw(_("You do not have mobile number set in your Employee master"))
 
-	caller_id = caller_id or employee.exotel_exophone
 	if not caller_id:
-		frappe.throw(_("You do not have an ExoPhone number set in your Employee master"))
+		if not employee.exotel_exophone_group:
+			frappe.throw(_("You do not have an ExoPhone Group set in your Employee master"))
+
+		caller_id = frappe.db.get_value(
+			"Exotel Exophone",
+			{"group": employee.exotel_exophone_group, "enabled": 1},
+			"phone_number",
+		)
+		if not caller_id:
+			frappe.throw(
+				_("No ExoPhone number is enabled for your ExoPhone Group {0}").format(
+					employee.exotel_exophone_group
+				)
+			)
 
 	try:
 		response = requests.post(
