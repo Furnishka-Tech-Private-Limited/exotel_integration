@@ -7,7 +7,7 @@
  "engine": "InnoDB",
  "field_order": [
   "phone_number",
-  "group",
+  "employee_group",
   "enabled"
  ],
  "fields": [
@@ -20,15 +20,16 @@
    "unique": 1
   },
   {
-   "fieldname": "group",
+   "description": "Employees in this group call out with this number. Only one enabled ExoPhone per group.",
+   "fieldname": "employee_group",
    "fieldtype": "Link",
    "in_list_view": 1,
-   "label": "Group",
-   "options": "Exotel Exophone Group"
+   "label": "Employee Group",
+   "options": "Employee Group"
   },
   {
    "default": "0",
-   "depends_on": "group",
+   "depends_on": "employee_group",
    "fieldname": "enabled",
    "fieldtype": "Check",
    "in_list_view": 1,

@@ -6,6 +6,8 @@ import requests
 from frappe import _
 from frappe.integrations.utils import create_request_log
 
+from exotel_integration.utils.exophone_groups import get_exophone_for_employee
+
 # Endpoints for webhook
 #
 # Incoming Call:
@@ -147,7 +149,7 @@ def make_a_call(to_number, caller_id=None, link_to_document=None):
 	employee = frappe.get_value(
 		"Employee",
 		{"user_id": frappe.session.user},
-		["cell_number", "exotel_exophone_group"],
+		["name", "cell_number"],
 		as_dict=True,
 	)
 
@@ -155,20 +157,18 @@ def make_a_call(to_number, caller_id=None, link_to_document=None):
 		frappe.throw(_("You do not have mobile number set in your Employee master"))
 
 	if not caller_id:
-		if not employee.exotel_exophone_group:
-			frappe.throw(_("You do not have an ExoPhone Group set in your Employee master"))
-
-		caller_id = frappe.db.get_value(
-			"Exotel Exophone",
-			{"group": employee.exotel_exophone_group, "enabled": 1},
-			"phone_number",
-		)
-		if not caller_id:
+		exophones = get_exophone_for_employee(employee.name)
+		if not exophones:
 			frappe.throw(
-				_("No ExoPhone number is enabled for your ExoPhone Group {0}").format(
-					employee.exotel_exophone_group
+				_("None of your Employee Groups has an enabled ExoPhone. Ask an admin to tag one to your group.")
+			)
+		if len(exophones) > 1:
+			frappe.throw(
+				_("You are in more than one Employee Group that has an enabled ExoPhone: {0}").format(
+					", ".join(row.employee_group for row in exophones)
 				)
 			)
+		caller_id = exophones[0].phone_number
 
 	try:
 		response = requests.post(

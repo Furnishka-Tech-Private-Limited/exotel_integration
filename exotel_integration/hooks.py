@@ -195,3 +195,9 @@ before_uninstall = "exotel_integration.utils.utils.remove_exotel_option"
 # Recommended only for DocTypes which have limited documents with untranslated names
 # For example: Role, Gender, etc.
 # translated_search_doctypes = []
+
+doc_events = {
+	"Employee Group": {
+		"validate": "exotel_integration.utils.exophone_groups.validate_employee_group",
+	},
+}
