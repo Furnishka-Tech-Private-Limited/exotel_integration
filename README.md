@@ -6,6 +6,7 @@ This allows you to integrate Exotel into your ERPNext instance. Leads and their 
 
 - Tracks incoming calls in your ERPNext account.
 - Shows existing lead/customer information pop-up to employees when an incoming call is received.
+- Places outbound click-to-call calls through an ExoPhone chosen from the caller's Employee Group.
 
 ## Installation
 1. Install [bench & ERPNext](https://github.com/frappe/erpnext#installation).
@@ -74,3 +75,16 @@ Once this is done, you should see all new incoming calls on your exotel phone nu
 #### License
 
 GNU General Public License (v3)
+
+### Outbound calls: which ExoPhone is the caller ID
+
+Click-to-call (`handler.make_a_call`) rings the agent's mobile (`Employee.cell_number`) first, then the customer.
+The caller ID is chosen like this:
+
+1. In the **Exotel Exophone** list, click **Fetch from Exotel** to import your numbers.
+2. Open a number, set its **Employee Group** and tick **Enabled**. Only one enabled number is allowed per Employee Group.
+3. An employee uses the enabled number of the Employee Group they belong to. If they are in several such groups, the group saved most recently wins.
+4. If none of the employee's groups has an enabled number, the call is still placed, without a caller ID.
+
+Upgrading from an older version: patch `v1_2.move_exophone_group_to_employee_group` creates an Employee Group for each
+old ExoPhone Group and tags the numbers with it (nothing is removed). Run it with `{"dry_run": 1}` first.

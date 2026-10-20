@@ -5,13 +5,10 @@ import frappe
 from frappe import _
 from frappe.model.document import Document
 
-from exotel_integration.utils.exophone_groups import check_members_not_in_other_exophone_group
-
 
 class ExotelExophone(Document):
 	def validate(self):
 		self.validate_single_enabled_per_group()
-		self.validate_members_not_in_other_group()
 
 	def validate_single_enabled_per_group(self):
 		if not (self.enabled and self.employee_group):
@@ -27,12 +24,3 @@ class ExotelExophone(Document):
 					"{0} is already enabled for Employee Group {1}. Disable it first before enabling another number for this group."
 				).format(frappe.bold(other_enabled), frappe.bold(self.employee_group))
 			)
-
-	def validate_members_not_in_other_group(self):
-		if not (self.enabled and self.employee_group):
-			return
-
-		members = frappe.get_all(
-			"Employee Group Table", filters={"parent": self.employee_group}, pluck="employee"
-		)
-		check_members_not_in_other_exophone_group(self.employee_group, members)

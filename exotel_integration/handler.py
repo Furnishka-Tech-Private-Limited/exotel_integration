@@ -157,18 +157,10 @@ def make_a_call(to_number, caller_id=None, link_to_document=None):
 		frappe.throw(_("You do not have mobile number set in your Employee master"))
 
 	if not caller_id:
+		# Newest Employee Group with an enabled ExoPhone wins. None enabled: CallerId stays empty (requests drops
+		# None fields), so the call is placed as it was before ExoPhones were introduced instead of being stopped.
 		exophones = get_exophone_for_employee(employee.name)
-		if not exophones:
-			frappe.throw(
-				_("None of your Employee Groups has an enabled ExoPhone. Ask an admin to tag one to your group.")
-			)
-		if len(exophones) > 1:
-			frappe.throw(
-				_("You are in more than one Employee Group that has an enabled ExoPhone: {0}").format(
-					", ".join(row.employee_group for row in exophones)
-				)
-			)
-		caller_id = exophones[0].phone_number
+		caller_id = exophones[0].phone_number if exophones else None
 
 	try:
 		response = requests.post(
