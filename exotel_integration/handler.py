@@ -6,6 +6,8 @@ import requests
 from frappe import _
 from frappe.integrations.utils import create_request_log
 
+from exotel_integration.softphone.api import agent_sip_id
+from exotel_integration.softphone.presence import online_sip_user
 from exotel_integration.utils.exophone_groups import get_exophone_for_employee
 
 # Endpoints for webhook
@@ -134,12 +136,12 @@ def create_call_log(
 @frappe.whitelist()
 def get_call_status(call_id):
 	endpoint = get_exotel_endpoint("Calls/{call_id}.json".format(call_id=call_id))
-	response = requests.get(endpoint)
+	response = requests.get(endpoint, timeout=5)  # a slow Exotel must not hold a web worker
 	return response.json().get("Call", {}).get("Status")
 
 
 @frappe.whitelist()
-def make_a_call(to_number, caller_id=None, link_to_document=None):
+def make_a_call(to_number, caller_id=None, link_to_document=None, use_softphone=0):
 	if not is_integration_enabled():
 		frappe.throw(
 			_("Please setup Exotel intergration"), title=_("Integration Not Enabled")
@@ -149,11 +151,17 @@ def make_a_call(to_number, caller_id=None, link_to_document=None):
 	employee = frappe.get_value(
 		"Employee",
 		{"user_id": frappe.session.user},
-		["name", "cell_number"],
+		["name", "cell_number", "custom_voip_sip_user"],
 		as_dict=True,
 	)
 
-	if not employee or not employee.cell_number:
+	# The agent's first leg is the SIP user only while a softphone is registered: the browser says so
+	# (exotel_softphone.is_ready()) or the server's own presence flag (pinged every 45 s) is set. A closed or
+	# unregistered tab therefore never swallows a call, and a stale or cached page cannot send it to the mobile.
+	softphone_up = int(use_softphone or 0) or online_sip_user(frappe.session.user)
+	agent_leg = agent_sip_id(employee.custom_voip_sip_user) if employee and softphone_up else None
+	agent_leg = agent_leg or (employee and employee.cell_number)
+	if not agent_leg:
 		frappe.throw(_("You do not have mobile number set in your Employee master"))
 
 	if not caller_id:
@@ -162,11 +170,11 @@ def make_a_call(to_number, caller_id=None, link_to_document=None):
 		exophones = get_exophone_for_employee(employee.name)
 		caller_id = exophones[0].phone_number if exophones else None
 
-	try:
+	def place_call(first_leg):
 		response = requests.post(
 			endpoint,
 			data={
-				"From": employee.cell_number,
+				"From": first_leg,
 				"To": to_number,
 				"CallerId": caller_id,
 				"Record": "true"
@@ -178,8 +186,32 @@ def make_a_call(to_number, caller_id=None, link_to_document=None):
 			},
 		)
 		response.raise_for_status()
+		return response
+
+	softphone_error = None
+	try:
+		try:
+			response = place_call(agent_leg)
+		except requests.exceptions.HTTPError as e:
+			# Exotel refused the SIP first leg: ring the mobile instead of losing the agent's call, and say why in the
+			# Response box. The other spelling (with the VoIP domain) is tried before giving up on the softphone.
+			mobile = employee and employee.cell_number
+			if not str(agent_leg).startswith("sip:"):
+				raise
+			softphone_error = (e.response.json().get("RestException") or {}).get("Message") or str(e)
+			short = agent_sip_id(employee.custom_voip_sip_user, with_domain=True)  # the other spelling
+			try:
+				if short == agent_leg:
+					raise
+				response = place_call(short)
+				agent_leg, softphone_error = short, None
+			except requests.exceptions.HTTPError:
+				if not mobile:
+					raise
+				agent_leg = mobile
+				response = place_call(agent_leg)
 	except requests.exceptions.HTTPError as e:
-		if exc := response.json().get("RestException"):
+		if exc := e.response.json().get("RestException"):
 			frappe.throw(bleach.linkify(exc.get("Message")), title=_("Exotel Exception"))
 	else:
 		res = response.json()
@@ -195,7 +227,8 @@ def make_a_call(to_number, caller_id=None, link_to_document=None):
 			link_to_document=link_to_document,
 		)
 
-	return response.json()
+	# shown in the Call dialog's Response box: what the agent's first leg was (a SIP id or a mobile) and why
+	return {**response.json(), "agent_leg_sent": agent_leg, "use_softphone_flag": int(use_softphone or 0), "softphone_error": softphone_error}
 
 def get_status_updater_url():
 	from frappe.utils.data import get_url
@@ -224,10 +257,15 @@ def whitelist_numbers(numbers, caller_id):
 @frappe.whitelist()
 def get_all_exophones():
 	endpoint = get_exotel_endpoint("IncomingPhoneNumbers.json")
-	response = requests.get(endpoint)
+	response = requests.get(endpoint, timeout=15)
+	body = response.json()
+	# Exotel answers a plural list for several numbers but a single "IncomingPhoneNumber" object for exactly one
+	phones = body.get("IncomingPhoneNumbers") or body.get("IncomingPhoneNumber") or []
+	if isinstance(phones, dict):
+		phones = [phones]
 	return [
-		phone.get("IncomingPhoneNumber", {}).get("PhoneNumber")
-		for phone in response.json().get("IncomingPhoneNumbers", [])
+		(phone.get("IncomingPhoneNumber") or phone).get("PhoneNumber")
+		for phone in phones
 	]
 
 
@@ -247,7 +285,8 @@ def sync_exophones_from_exotel():
 def get_exotel_endpoint(action):
 	settings = get_exotel_settings()
 	return (
-		"https://{api_key}:{api_token}@api.exotel.com/v1/Accounts/{sid}/{action}".format(
+		"https://{api_key}:{api_token}@{host}/v1/Accounts/{sid}/{action}".format(
+			host=settings.api_host or "api.exotel.com",
 			api_key=settings.api_key,
 			api_token=settings.get_password("api_token"),
 			sid=settings.account_sid,

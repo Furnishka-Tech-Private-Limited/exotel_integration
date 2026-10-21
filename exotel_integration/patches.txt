@@ -4,3 +4,4 @@
 exotel_integration.patches.v1_0.add_exotel_exophone_field_to_employee
 exotel_integration.patches.v1_1.add_exophone_group_and_migrate_employee_field
 exotel_integration.patches.v1_2.move_exophone_group_to_employee_group
+exotel_integration.patches.v1_3.add_voip_fields_to_employee

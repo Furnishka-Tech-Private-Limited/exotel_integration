@@ -14,7 +14,12 @@ required_apps = ["erpnext"]
 # include js, css files in header of desk.html
 # app_include_css = "/assets/exotel_integration/css/exotel_integration.css"
 # app_include_js = "/assets/exotel_integration/js/exotel_integration.js"
-app_include_js = "/assets/exotel_integration/js/call_handler.js"
+# nginx caches /assets/ for a year (max-age=31536000), so a changed file is only fetched again when its ?v= changes:
+# bump the number below whenever call_handler.js or softphone.js is edited.
+app_include_js = [
+	"/assets/exotel_integration/js/call_handler.js?v=9",
+	"/assets/exotel_integration/js/softphone/softphone.js?v=9",
+]
 
 # include js, css files in header of web template
 # web_include_css = "/assets/exotel_integration/css/exotel_integration.css"

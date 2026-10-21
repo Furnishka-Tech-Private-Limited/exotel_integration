@@ -9,9 +9,14 @@
   "account_sid",
   "api_key",
   "api_token",
+  "api_host",
   "record_call",
   "webhook_key",
-  "integration_info"
+  "integration_info",
+  "softphone_section",
+  "softphone_enabled",
+  "voip_proxy",
+  "voip_domain"
  ],
  "fields": [
   {
@@ -47,23 +52,59 @@
    "mandatory_depends_on": "enabled"
   },
   {
-    "default": "1",
-    "fieldname": "record_call",
-    "fieldtype": "Check",
-    "label": "Record Outgoing Calls"
-   },
-   {
-    "fieldname": "webhook_key",
-    "fieldtype": "Data",
-    "hidden": 1,
-    "label": "Webhook Key"
-   },
-   {
-    "depends_on": "webhook_key",
-    "fieldname": "integration_info",
-    "fieldtype": "HTML",
-    "label": "Integration Information"
-   }
+   "default": "1",
+   "fieldname": "record_call",
+   "fieldtype": "Check",
+   "label": "Record Outgoing Calls"
+  },
+  {
+   "fieldname": "webhook_key",
+   "fieldtype": "Data",
+   "hidden": 1,
+   "label": "Webhook Key"
+  },
+  {
+   "depends_on": "webhook_key",
+   "fieldname": "integration_info",
+   "fieldtype": "HTML",
+   "label": "Integration Information"
+  },
+  {
+   "fieldname": "softphone_section",
+   "fieldtype": "Section Break",
+   "label": "Softphone (VoIP in ERPNext)",
+   "depends_on": "enabled"
+  },
+  {
+   "default": "0",
+   "fieldname": "softphone_enabled",
+   "fieldtype": "Check",
+   "label": "Enable Softphone",
+   "description": "Agents who have a VoIP SIP user in their Employee record get a softphone inside ERPNext."
+  },
+  {
+   "default": "voip.in1.exotel.com",
+   "fieldname": "voip_proxy",
+   "fieldtype": "Data",
+   "label": "VoIP Proxy Address",
+   "description": "From my.exotel.com > VOIP, the host part of \"VOIP Proxy Address\" (the port is 443).",
+   "mandatory_depends_on": "softphone_enabled"
+  },
+  {
+   "fieldname": "voip_domain",
+   "fieldtype": "Data",
+   "label": "VoIP Domain Address",
+   "description": "From my.exotel.com > VOIP, \"VOIP Domain Address\".",
+   "mandatory_depends_on": "softphone_enabled"
+  },
+  {
+   "fieldname": "api_host",
+   "fieldtype": "Select",
+   "label": "API Host",
+   "options": "api.exotel.com\napi.in.exotel.com",
+   "default": "api.exotel.com",
+   "description": "The Subdomain shown on my.exotel.com > API Settings: api.exotel.com (Singapore) or api.in.exotel.com (Mumbai). It must match the account's region."
+  }
  ],
  "issingle": 1,
  "links": [],

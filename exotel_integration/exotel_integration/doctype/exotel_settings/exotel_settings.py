@@ -16,7 +16,7 @@ class ExotelSettings(Document):
 	def verify_credentials(self):
 		if self.enabled:
 			response = requests.get(
-				"https://api.exotel.com/v1/Accounts/{sid}".format(sid=self.account_sid),
+				"https://{host}/v1/Accounts/{sid}".format(host=self.api_host or "api.exotel.com", sid=self.account_sid),
 				auth=(self.api_key, self.get_password("api_token")),
 			)
 			if response.status_code != 200:
